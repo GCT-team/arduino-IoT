@@ -1,78 +1,69 @@
-#define BROKER_IP "broker.hivemq.com"
-#define DEV_NAME "mqttdevice"
-#define MQTT_USER ""
-#define MQTT_PW ""
+#include <Arduino_JSON.h>
+#include <MQTT.h>
+#include <WiFiNINA.h>
+
+#define BROKER_IP    "broker.hivemq.com"
+#define DEV_NAME     "mqttdevice"
+#define MQTT_USER    "user"
+#define MQTT_PW      "password"
+
+//const char ssid[] = "Eventi";
+//const char pass[] = "Di.Toro.567!";
 const char ssid[] = "Wi-Fi Casa 2.4GHz";
 const char pass[] = "aalino98";
-#include <MQTT.h>
-#ifdef ARDUINO_SAMD_MKRWIFI1010
-#include <WiFiNINA.h>
-#elif ARDUINO_SAMD_MKR1000
-#include <WiFi101.h>
-#elif ESP8266
-#include <ESP8266WiFi.h>
-#else
-#error unknown board
-#endif
+const char topic_client[]  = "castellano_client";
+const char topic_server[]  = "castellano_server";
+ 
 WiFiClient net;
 MQTTClient client;
-unsigned long lastMillis = 0;
+const int buttonPin = 2;  // the number of the pushbutton pin
+int buttonState = 0;  // variable for reading the pushbutton status
 
-#include <Arduino_JSON.h>
+void connect() {
+  Serial.print("Attempting to connect to WPA SSID: ");
+  Serial.println(ssid);
+  while (WiFi.begin(ssid, pass) != WL_CONNECTED) {
+    Serial.print(".");
+  }
+  /*while (!client.connect(DEV_NAME, MQTT_USER, MQTT_PW)) {
 
-const int buttonPin = 2; // the number of the pushbutton pin
-int buttonState = 0;     // variable for reading the pushbutton status
-
-void connect()
-{
-  while (WiFi.status() != WL_CONNECTED)
-  {
     Serial.print(".");
     delay(1000);
   }
-  while (!client.connect(DEV_NAME, MQTT_USER, MQTT_PW))
-  {
-    Serial.print(".");
-    delay(1000);
-  }
-  client.subscribe("/castellano_server"); //SUBSCRIBE TO TOPIC /hello
+  */
+  client.connect(BROKER_IP, 1883);
+  Serial.println("\nconnected!");
+  client.subscribe(topic_server);
+   
 }
 
-void messageReceived(String &topic, String &payload)
-{
+void messageReceived(String &topic, String &payload) {
   Serial.println("incoming: " + topic + " - " + payload);
-  // TODO DA FARE PROSSIMA VOLTA
   Serial.println(payload.toDouble());
 }
-
-/*void sendGCT(){
-    JSONVar myObject;
-    myObject["temp"] = //lettura sennsore temp;
-    myObject["hum"] = //lettura sennsore umidità;
-}*/
-
-void setup()
-{
+ 
+void setup() {
   Serial.begin(9600);
   WiFi.begin(ssid, pass);
-  pinMode(LED_BUILTIN, OUTPUT); //Led integrato
-  pinMode(buttonPin, INPUT);    //Bottone
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(buttonPin, INPUT);
   client.begin(BROKER_IP, 1883, net);
   client.onMessage(messageReceived);
   connect();
 }
 
-void loop()
-{
-  client.loop();
-  if (!client.connected())
-  {
-    connect();
-  }
-  // publish a message roughly every second.
-  if (buttonState == HIGH)
-  {
-    digitalWrite(LED_BUILTIN, HIGH); //Led di conferma
-    client.publish("/castellano_client", "world"); //PUBLISH TO TOPIC /hello MSG world
+void send() {
+    Serial.print("Richiesta previsione meteo: ");
+    Serial.println(topic_client);
+    client.publish(topic_client, "forecast_request");
+    Serial.println();
+}
+
+void loop() {
+  if (buttonState == HIGH) {
+    client.loop();
+    digitalWrite(LED_BUILTIN, HIGH);
+    send(); 
   }
 }
